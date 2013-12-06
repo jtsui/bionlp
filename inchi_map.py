@@ -15,7 +15,7 @@ from indigo.indigo_inchi import *
 INDIGO = Indigo()
 INDIGO_INCHI = IndigoInchi(INDIGO)
 
-MAP_PATH = 'inchi_map.json'
+MAP_PATH = '../data/inchi_map.json'
 
 if os.path.exists(MAP_PATH):
     CHEM_INCHI_MAP = json.load(open(MAP_PATH))

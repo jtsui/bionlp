@@ -8,7 +8,7 @@ import sys
 from random import choice
 from utils import *
 
-MAP_PATH = 'smiles_map.json'
+MAP_PATH = '../data/smiles_map.json'
 # words that have a smiles but are not chemicals
 BLACKLIST_COMMON = set(['heat', 'I', 'II', 'region', 'for', 'of', 'sp',
                        'cds', 'str', 'complete', 'genome', 'draft', 'and',
