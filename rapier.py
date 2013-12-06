@@ -178,9 +178,9 @@ def match_inchis():
             continue
         sentence_reactants = defaultdict(set)
         for rxn_id, reaction in rxns.iteritems():
-            substrate_set = set([chemical_inchi_map(x)
+            substrate_set = set([chemical_inchi_map[str(x)]
                                 for x in reaction['substrates']])
-            product_set = set([chemical_inchi_map(x)
+            product_set = set([chemical_inchi_map[str(x)]
                                for x in reaction['products']])
             s_intersect = inchi_set.intersection(substrate_set)
             p_intersect = inchi_set.intersection(product_set)
