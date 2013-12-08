@@ -10,6 +10,11 @@ COMMON = set(['a', 'purified'])
 
 
 def clean_chemicals():
+    '''
+    input: train_chemicals.json
+    output: train_clean_chemicals.json
+    loads chemicals and removes common words and duplicates, and add plurals
+    '''
     chemicals = json.load(open('../data/train_chemicals.json'))
     clean_chemicals = {}
     bar, i = pbar(len(chemicals)), 0
@@ -30,6 +35,12 @@ def clean_chemicals():
 
 
 def generate_sentences():
+    '''
+    input: train_abstracts.json
+    output: train_sentences.json
+    loads abstracts and splits into training set of sentences as a map with
+    keys <pmid>-<sentence id>
+    '''
     abstracts = json.load(open('../data/train_abstracts.json'))
     bar, i = pbar(len(abstracts)), 0
     print 'Generating list of sentences from abstracts'
@@ -49,6 +60,13 @@ def generate_sentences():
 
 
 def tag_sentences():
+    '''
+    input: train_sentences.json
+    output: train_tag_sentences.json
+    Tags the chemicals in each sentence using ChemicalTagger 
+    (http://chemicaltagger.ch.cam.ac.uk/). This method communicates with 
+    ChemicalTagger through a custom REST API running on pathway.berkeley.edu
+    '''
     sentences = json.load(open('../data/train_sentences.json'))
     bar, i = pbar(len(sentences)), 0
     print 'Tagging chemicals in sentences'
@@ -66,7 +84,24 @@ def tag_sentences():
     print 'Result dumped to ../data/train_tag_sentences.json'
 
 
+def match_criteria(substrates, products):
+    '''
+    returns True or False if substrates and products list matches our matching
+    criteria. match only if there is at least one substrate and at least one 
+    product and the lists cannot be the same
+    '''
+    return (len(substrates) > 0 and
+            len(products) > 0 and
+           (len(substrates) > 1 or
+            len(products) > 1 or
+            substrates != products))
+
+
 def find_reactants(sentence, substrate_set, product_set):
+    '''
+    Finds the susbstrates and products in the sentence. Returns the serialized
+    reaction or None if not found in sentence
+    '''
     found_subs, found_prods = [], []
     sentence_lower = sentence.lower()
     sentence_words = sentence.split()
@@ -101,14 +136,17 @@ def find_reactants(sentence, substrate_set, product_set):
                 break
             except ValueError:
                 continue
-    if (len(found_subs) > 0 and len(found_prods) > 0 and
-        (len(found_subs) > 1 or len(found_prods) > 1 or
-         found_subs != found_prods)):  # chemical can be substrate and product
-        return '%s => %s' % (' + '.join(found_subs), ' + '.join(found_prods))
+    if match_criteria(found_subs, found_prods):
+        return serialize_rxn(found_subs, found_prods)
     return None
 
 
 def match_name():
+    '''
+    input: train_sentences.json, train_clean_chemicals.json, 
+           train_abstracts.json
+    output: train_chemicals.json 
+    '''
     sentences = json.load(open('../data/train_sentences.json'))
     chemicals = json.load(open('../data/train_clean_chemicals.json'))
     abstracts_rxns = json.load(open('../data/train_abstracts.json'))
@@ -123,8 +161,7 @@ def match_name():
         for rxn_id, reaction in reactions.iteritems():
             sub_ids = set(reaction['substrates'])
             prod_ids = set(reaction['products'])
-            rxn_readable = '%s => %s' % (' + '.join([str(x) for x in sorted(list(sub_ids))]),
-                                         ' + '.join([str(x) for x in sorted(list(prod_ids))]))
+            rxn_readable = serialize_rxn(sub_ids, prod_ids)
             sub_set = set([y for x in sub_ids for y in chemicals[str(x)]])
             prod_set = set([y for x in prod_ids for y in chemicals[str(x)]])
             rxn_found = find_reactants(sentence, sub_set, prod_set)
@@ -144,6 +181,11 @@ def match_name():
 
 
 def match_inchi():
+    '''
+    input: train_sentences.json, train_tag_sentences.json, 
+           train_abstracts.json, chemid_inchi_map.json
+    output: train_match_inchi.json 
+    '''
     chemical_inchi_map = json.load(open('../data/chemid_inchi_map.json'))
     sentences = json.load(open('../data/train_sentences.json'))
     chemicals = json.load(open('../data/train_tag_sentences.json'))
@@ -153,6 +195,8 @@ def match_inchi():
     bar.start()
     matches = {}
     for sid, sent in sentences.iteritems():
+        i += 1
+        bar.update(i)
         pmid = sid.split('-')[0]
         chems = chemicals.get(sid, [])
         inchis = chem_canonicalizer.names_to_inchi(chems)
@@ -169,13 +213,11 @@ def match_inchi():
             s_intersect = inchi_set.intersection(substrate_set)
             p_intersect = inchi_set.intersection(product_set)
             # chemical can be substrate and product
-            if (len(s_intersect) > 0 and len(p_intersect) > 0 and
-                (len(s_intersect) > 1 or len(p_intersect) > 1 or
-                 s_intersect != p_intersect)):
-                key = '%s => %s' % (' + '.join([inchis[x] for x in s_intersect]),
-                                    ' + '.join([inchis[x] for x in p_intersect]))
-                val = '%s => %s' % (' + '.join([str(x) for x in sorted(list(reaction['substrates']))]),
-                                    ' + '.join([str(x) for x in sorted(list(reaction['products']))]))
+            if match_criteria(s_intersect, p_intersect):
+                key = serialize_rxn([inchis[x] for x in s_intersect],
+                                    [inchis[x] for x in p_intersect])
+                val = serialize_rxn(reaction['substrates'],
+                                    reaction['products'])
                 sentence_reactants[key].add(val)
         if len(sentence_reactants) > 0:
             reactants = dict([(x, list(y))
@@ -183,24 +225,55 @@ def match_inchi():
             matches[sid] = {'sentence': sent,
                             'reactants': reactants,
                             }
-        i += 1
-        bar.update(i)
     bar.finish()
     json.dump(matches, open('../data/train_match_inchi.json', 'wb'),
               indent=2, sort_keys=True)
     print 'Results dumped to ../data/train_match_inchi.json'
 
 
+def remove_substrings(chemicals):
+    '''
+    Compress chemical lists by removing names that are substrings of others
+    Example: ['ent-kaurenoic acid', u'kaurenoic acid'] -> ['ent-kaurenoic acid']
+    '''
+    compressed = []
+    for a in chemicals:
+        is_substring = False
+        for b in chemicals:
+            if a != b and a in b:
+                is_substring = True
+        if not is_substring:
+            compressed.append(a)
+    return compressed
+
+
 def combine():
+    '''
+    input: train_match_inchi.json, train_match_name.json
+    output: train_match.json 
+    Combines the matches by inchi and matches by name and merges chemical 
+    names that map to the same reaction
+    '''
     match_inchi = json.load(open('../data/train_match_inchi.json'))
     match_name = json.load(open('../data/train_match_name.json'))
     combined = match_name
     for sid, data in match_inchi.iteritems():
         if sid in combined:
-            combined[sid]['reactants'].update(data['reactants'])
-            pr.pprint(combined[sid])
-            import pdb
-            pdb.set_trace()
+            combined[sid]['reactants'] = merge_dols(
+                combined[sid]['reactants'], data['reactants'])
+            merged_reactants = defaultdict(set)
+            for rxn, reactants in invert_dol(combined[sid]['reactants']).items():
+                if len(reactants) == 1:
+                    merged_reactants[reactants[0]].add(rxn)
+                    continue
+                # for same reaction, merge two sets of reactants
+                subs = remove_substrings(set([y for x in reactants
+                                              for y in x.split(' => ')[0].split(' + ')]))
+                prods = remove_substrings(set([y for x in reactants
+                                               for y in x.split(' => ')[1].split(' + ')]))
+                merged_reactants[serialize_rxn(subs, prods)].add(rxn)
+            combined[sid]['reactants'] = dict([(x, list(y))
+                                               for x, y in merged_reactants.items()])
         else:
             combined[sid] = data
     json.dump(combined, open('../data/train_match.json', 'wb'),
@@ -208,6 +281,11 @@ def combine():
 
 
 def stats():
+    '''
+    input: train_abstracts.json, train_sentences.json, train_match_inchi.json,
+           train_match_name.json, train_match.json 
+    generates a summary report after loading all intermediary match data
+    '''
     abstracts = json.load(open('../data/train_abstracts.json'))
     sentences = json.load(open('../data/train_sentences.json'))
     match_inchi = json.load(open('../data/train_match_inchi.json'))
@@ -216,21 +294,20 @@ def stats():
     print 'Overview:'
     print '  Abstracts: %s' % len(abstracts)
     print '  Sentences: %s' % len(sentences)
-    print 'Sentence with at least 1 substrate and at least 1 product:'
-    print '  Match by name'
+    print 'Match by name:'
     abstracts_name = set([x.split('-')[0] for x in match_name.keys()])
-    print '    Sentences: %s' % len(match_name)
-    print '    Abstracts: %s' % len(abstracts_name)
-    print '  Match by inchi'
+    print '  Sentences: %s' % len(match_name)
+    print '  Abstracts: %s' % len(abstracts_name)
+    print 'Match by inchi:'
     abstracts_inchi = set([x.split('-')[0] for x in match_inchi.keys()])
-    print '    Sentences: %s' % len(match_inchi)
-    print '    Abstracts: %s' % len(abstracts_inchi)
-    print '  Intersection'
-    print '    Sentences: %s' % len(set(match_inchi.keys()).intersection(set(match_name.keys())))
-    print '    Abstracts: %s' % len(abstracts_inchi.intersection(abstracts_name))
-    print '  Combined'
-    print '    Sentences: %s' % len(match)
-    print '    Abstracts: %s' % len(set([x.split('-')[0] for x in match.keys()]))
+    print '  Sentences: %s' % len(match_inchi)
+    print '  Abstracts: %s' % len(abstracts_inchi)
+    print 'Intersection:'
+    print '  Sentences: %s' % len(set(match_inchi.keys()).intersection(set(match_name.keys())))
+    print '  Abstracts: %s' % len(abstracts_inchi.intersection(abstracts_name))
+    print 'Combined:'
+    print '  Sentences: %s' % len(match)
+    print '  Abstracts: %s' % len(set([x.split('-')[0] for x in match.keys()]))
 
 
 def main():
