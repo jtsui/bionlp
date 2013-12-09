@@ -24,8 +24,6 @@ def deserialize_rxn(rxn):
     '''
     subs = [y for y in rxn.split(' => ')[0].split(' + ')]
     prods = [y for y in rxn.split(' => ')[1].split(' + ')]
-    import pdb
-    pdb.set_trace()
     return subs, prods
 
 
@@ -52,8 +50,6 @@ def invert_dol(dol):
         for v in alist:
             inv_map[v] = inv_map.get(v, [])
             inv_map[v].append(k)
-    import pdb
-    pdb.set_trace()
     return inv_map
 
 

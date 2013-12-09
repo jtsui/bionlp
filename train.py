@@ -95,6 +95,7 @@ def match_criteria(substrates, products):
            (len(substrates) > 1 or
             len(products) > 1 or
             substrates != products))
+    # return len(substrates) > 0 or len(products) > 0
 
 
 def find_reactants(sentence, substrate_set, product_set):
@@ -161,11 +162,11 @@ def match_name():
         for rxn_id, reaction in reactions.iteritems():
             sub_ids = set(reaction['substrates'])
             prod_ids = set(reaction['products'])
-            rxn_readable = serialize_rxn(sub_ids, prod_ids)
             sub_set = set([y for x in sub_ids for y in chemicals[str(x)]])
             prod_set = set([y for x in prod_ids for y in chemicals[str(x)]])
             rxn_found = find_reactants(sentence, sub_set, prod_set)
             if rxn_found:
+                rxn_readable = serialize_rxn(sub_ids, prod_ids)
                 reactants[rxn_found].add(rxn_readable)
         sentence_reactants = dict([(x, list(y)) for x, y in reactants.items()])
         if len(sentence_reactants) > 0:
@@ -202,8 +203,6 @@ def match_inchi():
         inchis = chem_canonicalizer.names_to_inchi(chems)
         inchi_set = set(inchis.keys())
         rxns = abstracts_rxns[pmid]['reactions']
-        if len(inchis) < 2:
-            continue
         sentence_reactants = defaultdict(set)
         for rxn_id, reaction in rxns.iteritems():
             substrate_set = set([chemical_inchi_map[str(x)]
@@ -212,7 +211,6 @@ def match_inchi():
                                for x in reaction['products']])
             s_intersect = inchi_set.intersection(substrate_set)
             p_intersect = inchi_set.intersection(product_set)
-            # chemical can be substrate and product
             if match_criteria(s_intersect, p_intersect):
                 key = serialize_rxn([inchis[x] for x in s_intersect],
                                     [inchis[x] for x in p_intersect])
@@ -310,6 +308,70 @@ def stats():
     print '  Abstracts: %s' % len(set([x.split('-')[0] for x in match.keys()]))
 
 
+def abstract_stats():
+    chemical_inchi_map = json.load(open('../data/chemid_inchi_map.json'))
+    chemicals = json.load(open('../data/train_tag_sentences.json'))
+    clean_chemicals = json.load(open('../data/train_clean_chemicals.json'))
+    abstracts_rxns = json.load(open('../data/train_abstracts.json'))
+    chemicals_abstract = defaultdict(list)
+    for sid, chems in chemicals.iteritems():
+        chemicals_abstract[sid.split('-')[0]].extend(chems)
+    print 'Matching abstracts by inchi'
+    match_inchi = set()
+    bar, i = pbar(len(abstracts_rxns)), 0
+    bar.start()
+    for pmid, data in abstracts_rxns.iteritems():
+        rxns = data['reactions']
+        abstract = data['abstract']
+        i += 1
+        bar.update(i)
+        chems = chemicals_abstract.get(pmid, [])
+        inchi_set = set(chem_canonicalizer.names_to_inchi(chems))
+        matched = False
+        for rxn_id, reaction in rxns.iteritems():
+            substrate_set = set([chemical_inchi_map[str(x)]
+                                for x in reaction['substrates']])
+            product_set = set([chemical_inchi_map[str(x)]
+                               for x in reaction['products']])
+            s_intersect = inchi_set.intersection(substrate_set)
+            p_intersect = inchi_set.intersection(product_set)
+            if match_criteria(s_intersect, p_intersect):
+                matched = True
+                break
+        if matched:
+            match_inchi.add(pmid)
+    bar.finish()
+    print 'Matching abstracts by name'
+    match_name = set()
+    bar, i = pbar(len(abstracts_rxns)), 0
+    bar.start()
+    for pmid, data in abstracts_rxns.iteritems():
+        reactions = data['reactions']
+        abstract = data['abstract']
+        i += 1
+        bar.update(i)
+        matched = False
+        for rxn_id, reaction in reactions.iteritems():
+            sub_ids = set(reaction['substrates'])
+            prod_ids = set(reaction['products'])
+            sub_set = set(
+                [y for x in sub_ids for y in clean_chemicals[str(x)]])
+            prod_set = set(
+                [y for x in prod_ids for y in clean_chemicals[str(x)]])
+            rxn_found = find_reactants(abstract, sub_set, prod_set)
+            if rxn_found:
+                matched = True
+                break
+        if matched:
+            match_name.add(pmid)
+    bar.finish()
+    print 'Abstracts: %s' % len(abstracts_rxns)
+    print 'Match by name: %s' % len(match_name)
+    print 'Match by inchi: %s' % len(match_inchi)
+    print 'Intersection: %s' % len(match_name.intersection(match_inchi))
+    print 'Union: %s' % len(match_name.union(match_inchi))
+
+
 def main():
     '''
     Commands are in order of dependencies.
@@ -336,6 +398,9 @@ def main():
             return
         elif command == 'stats':
             stats()
+            return
+        elif command == 'abstract_stats':
+            abstract_stats()
             return
     print 'Wrong number of arguments. Usage: python rapier.py [sentences, chemicals, matchname, tag, matchinchi]'
 
