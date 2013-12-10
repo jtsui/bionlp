@@ -309,6 +309,10 @@ def stats():
 
 
 def abstract_stats():
+    '''
+    generates a summary of number of abstracts that have at least one
+    substrate and at least one product, by matchine names and inchis
+    '''
     chemical_inchi_map = json.load(open('../data/chemid_inchi_map.json'))
     chemicals = json.load(open('../data/train_tag_sentences.json'))
     clean_chemicals = json.load(open('../data/train_clean_chemicals.json'))
@@ -402,7 +406,7 @@ def main():
         elif command == 'abstract_stats':
             abstract_stats()
             return
-    print 'Wrong number of arguments. Usage: python rapier.py [sentences, chemicals, matchname, tag, matchinchi]'
+    print 'Wrong number of arguments. Usage: python rapier.py [sentences, clean_chemicals, match_name, tag_sentences, match_inchi, combine, stats, abstract_stats]'
 
 
 if __name__ == '__main__':
