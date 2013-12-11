@@ -50,7 +50,7 @@ patterns5 = [r'\$([^\$.]*?)\$cmp %s %s \$([^\$.]*?)\$cmp',
              ]
 
 
-def grow_patterns():
+def expand_patterns():
     patterns = defaultdict(list)
     for pattern in patterns1:
         for vals in itertools.product(triggers1, transitions):
@@ -71,16 +71,16 @@ def grow_patterns():
 
 
 def main():
-    patterns = grow_patterns()
+    patterns = expand_patterns()
     stemmer = LancasterStemmer()
     tests = [
-        (0, 1, [('cholesterol', 'epoxides')],
+        (0, 1, [('cholesterol', 'chlorohydrins')],
          'These results indicate that myeloperoxidase can convert $cholesterol$cmp to $chlorohydrins$cmp and epoxides by a reaction involving HOCl'),
         (1, 2, [('prostaglandins', 'COX-2')],
             'We investigated the possible role of $prostaglandins$cmp produced by $COX-2$cmp in the immunosuppression observed during Trypanosoma cruzi infection'),
         (2, 3, [
-            ('5-formyl-6-methoxy-2,3-diphenylbenzofuran (IVa)', '6- and 5-methyl derivatives')],
-         'Reduction of 5-methoxy-6-formyl(Ia)- and $5-formyl-6-methoxy-2,3-diphenylbenzofuran (IVa)$cmp yielded $6- and 5-methyl derivatives$cmp Ib and IVb, respectively'),
+            ('5-formyl-6-methoxy-2,3-diphenylbenzofuran', '6- and 5-methyl derivatives')],
+         'Reduction of 5-methoxy-6-formyl(Ia)- and $5-formyl-6-methoxy-2,3-diphenylbenzofuran$cmp yielded $6- and 5-methyl derivatives$cmp Ib and IVb, respectively'),
         (3, 4, [('ester', 'amide')],
          'It results in the mutual conversion of $ester$cmp and $amide$cmp bonds'),
     ]
@@ -91,6 +91,7 @@ def main():
             result = re.findall(pattern, stemmed_sent)
             if result == output:
                 print 'Test %s passed.' % test_index
+                break
 
 if __name__ == '__main__':
     main()
