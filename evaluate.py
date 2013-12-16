@@ -1,4 +1,3 @@
-import re
 import sys
 import json
 import patterns
@@ -25,7 +24,7 @@ def extract(sentence, chemicals, stemmer, pattern_set):
             chemical, '$%s$cmp' % chemical)
     for pattern_id in pattern_set:
         for pattern in pattern_set[pattern_id]:
-            matches = re.findall(pattern, tagged_sentence)
+            matches = pattern.findall(tagged_sentence)
             if matches:
                 reactants.append((pattern_id, matches))
     return reactants
@@ -64,27 +63,25 @@ def evaluate():
     bar.start()
     for sid, sentence in sentences.iteritems():
         reactants = extract(sentence, chemicals.get(sid), stemmer, pattern_set)
-        if reactants:  # pattern match
-            if sid in training_set:
-                tagged_reactions = training_set[sid]['reactants'].keys()
-                found_match = False
-                for pattern_id, reactions in reactants:
-                    if found_match:
+        if reactants and sid in training_set:  # pattern match
+            tagged_reactions = training_set[sid]['reactants'].keys()
+            found_match = False
+            for pattern_id, reactions in reactants:
+                if found_match:
+                    break
+                for reaction in reactions:
+                    if match_reaction(tagged_reactions, reaction):
+                        tp.append((sid, [(pattern_id, [reaction])]))
+                        found_match = True
                         break
-                    for reaction in reactions:
-                        if match_reaction(tagged_reactions, reaction):
-                            tp.append((sid, [(pattern_id, [reaction])]))
-                            found_match = True
-                            break
-                if not found_match:
-                    fp.append((sid, reactants))
-            else:
+            if not found_match:  # pattern match and not tagged by BRENDA
                 fp.append((sid, reactants))
-        else:  # not a pattern match
-            if sid in training_set:  # tagged by BRENDA
-                fn.append(sid)
-            else:  # not tagged by BRENDA
-                tn.append(sid)
+        elif sid in training_set:  # not a pattern match and tagged by BRENDA
+            fn.append(sid)
+        elif reactants:
+            fp.append((sid, reactants))
+        else:  # not a pattern match and not tagged by BRENDA
+            tn.append(sid)
         i += 1
         bar.update(i)
     bar.finish()
@@ -95,7 +92,21 @@ def evaluate():
 
 
 def stats():
-    pass
+    tp = json.load(open('../data/evaluate_tp.json'))
+    fp = json.load(open('../data/evaluate_fp.json'))
+    tn = json.load(open('../data/evaluate_tn.json'))
+    fn = json.load(open('../data/evaluate_fn.json'))
+    tp_num = len(tp) * 1.0
+    fp_num = len(fp) * 1.0
+    tn_num = len(tn) * 1.0
+    fn_num = len(fn) * 1.0
+    print 'True positive: %s' % tp_num
+    print 'False positive: %s' % fp_num
+    print 'True negative: %s' % tn_num
+    print 'False negative: %s' % fn_num
+    print 'Precision: %s' % (tp_num / (tp_num + fp_num))
+    print 'Recall: %s' % (tp_num / (tp_num + fn_num))
+    print 'Accuracy: %s' % ((tp_num + tn_num) / (tp_num + fp_num + fn_num + tn_num))
 
 
 def main():
