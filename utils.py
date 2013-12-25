@@ -83,6 +83,14 @@ def flatten_list(alist):
             out_list.append(l)
     return out_list
 
+def flatten_list_tuple(alist):
+    out_list = []
+    for l in alist:
+        if isinstance(l, list) or isinstance(l, tuple):
+            out_list.extend(flatten_list(l))
+        else:
+            out_list.append(l)
+    return out_list
 
 def grouper(iterable, i=2):
     '''takes s and returns (s0,s1), (s1,s2), (s2, s3), etc'''
@@ -95,6 +103,26 @@ def grouper(iterable, i=2):
             next(iters[j], None)
     # * unpacks the list turning each element to an arg
     return itertools.izip(*iters)
+
+
+def find_all(string, search):
+    indexes = []
+    i = string.find(search)
+    start_index = 0
+    while i > -1:
+        i += start_index
+        indexes.append((i, i + len(search)))
+        string = string[i + len(search):]
+        start_index += i + len(search)
+        i = string.find(search)
+    return indexes
+
+
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i + n]
 
 
 def main():

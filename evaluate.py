@@ -21,7 +21,7 @@ def extract(sentence, chemicals, stemmer, pattern_set):
     tagged_sentence = stemmed_sentence
     for chemical in chemicals:
         tagged_sentence = tagged_sentence.replace(
-            chemical, '$%s$cmp' % chemical)
+            chemical, '$%s$chem' % chemical)
     for pattern_id in pattern_set:
         for pattern in pattern_set[pattern_id]:
             matches = pattern.findall(tagged_sentence)

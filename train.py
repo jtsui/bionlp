@@ -84,18 +84,21 @@ def tag_sentences():
     print 'Result dumped to ../data/train_tag_sentences.json'
 
 
-def match_criteria(substrates, products):
-    '''
-    returns True or False if substrates and products list matches our matching
-    criteria. match only if there is at least one substrate and at least one 
-    product and the lists cannot be the same
-    '''
-    return (len(substrates) > 0 and
-            len(products) > 0 and
-           (len(substrates) > 1 or
-            len(products) > 1 or
-            substrates != products))
-    # return len(substrates) > 0 or len(products) > 0
+def get_overlap(chemicals_list):
+    indexes = [((chemicals_list[i][0], i), (chemicals_list[i][1], i))
+               for i in range(len(chemicals_list))]
+    ordered_indexes = sorted([x for y in indexes for x in y])
+    list_indexes = [y for x, y in ordered_indexes]
+    overlap = []
+    unclosed = set()
+    for x in list_indexes:
+        if x in unclosed:
+            unclosed.remove(x)
+        else:
+            for y in unclosed:
+                overlap.append(tuple(sorted((x, y))))
+            unclosed.add(x)
+    return list(set(overlap))
 
 
 def find_reactants(sentence, substrate_set, product_set):
@@ -103,43 +106,47 @@ def find_reactants(sentence, substrate_set, product_set):
     Finds the susbstrates and products in the sentence. Returns the serialized
     reaction or None if not found in sentence
     '''
-    found_subs, found_prods = [], []
     sentence_lower = sentence.lower()
-    sentence_words = sentence.split()
-    sentence_lower_words = sentence_lower.split()
+    chemicals = []
     for substrate in sorted(substrate_set, key=lambda x: len(x)):
-        if ' ' in substrate:
-            try:
-                i = sentence_lower.index(substrate)
-                found_subs.append(sentence[i:i + len(substrate)])
-                break
-            except ValueError:
-                continue
-        else:
-            try:
-                i = sentence_lower_words.index(substrate)
-                found_subs.append(sentence_words[i])
-                break
-            except ValueError:
-                continue
+        indexes = find_all(' %s ' % sentence_lower, ' %s ' % substrate.lower())
+        for x, y in indexes:
+            chemicals.append((x, y - 2, substrate.lower(), 'substrate'))
     for product in sorted(product_set, key=lambda x: len(x)):
-        if ' ' in product:
-            try:
-                i = sentence_lower.index(product)
-                found_prods.append(sentence[i:i + len(product)])
-                break
-            except ValueError:
-                continue
+        indexes = find_all(' %s ' % sentence_lower, ' %s ' % product.lower())
+        for x, y in indexes:
+            chemicals.append((x, y - 2, product.lower(), 'product'))
+    if len(chemicals) < 2 or len(set([x[2] for x in chemicals])) < 2:
+        return None
+    substrate_or_product, exclude = [], []
+    for i1, i2 in get_overlap(chemicals):
+        if chemicals[i1][1] - chemicals[i1][0] > chemicals[i2][1] - chemicals[i2][0]:
+            exclude.append(i2)
+        elif chemicals[i1][1] - chemicals[i1][0] < chemicals[i2][1] - chemicals[i2][0]:
+            exclude.append(i1)
+        else:  # overlap and same length must match substrate and product
+            substrate_or_product.append(
+                (chemicals[i1][0], chemicals[i1][1], chemicals[i1][2]))
+            exclude.append(i1)
+            exclude.append(i2)
+    chemicals_no_overlap = [chemicals[i] for i in range(len(chemicals))
+                            if i not in exclude]
+    if len(chemicals_no_overlap) + len(substrate_or_product) < 2:
+        return None
+    sub_count = len([x for x in chemicals_no_overlap if x[-1] == 'substrate'])
+    prod_count = len([x for x in chemicals_no_overlap if x[-1] == 'product'])
+    for chemical in substrate_or_product:
+        if sub_count < prod_count:
+            chemicals_no_overlap.append(chemical + ('substrate', ))
+            sub_count += 1
         else:
-            try:
-                i = sentence_lower_words.index(product)
-                found_prods.append(sentence_words[i])
-                break
-            except ValueError:
-                continue
-    if match_criteria(found_subs, found_prods):
-        return serialize_rxn(found_subs, found_prods)
-    return None
+            chemicals_no_overlap.append(chemical + ('product', ))
+            prod_count += 1
+    subs = set([x[2] for x in chemicals_no_overlap if x[-1] == 'substrate'])
+    prods = set([x[2] for x in chemicals_no_overlap if x[-1] == 'product'])
+    if not subs or not prods:
+        return None
+    return serialize_rxn(subs, prods)
 
 
 def match_name():
