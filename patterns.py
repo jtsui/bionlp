@@ -37,8 +37,7 @@ patterns3 = [r'%s (?:%s) %s',
 
 # pattern4: [trigger4] <0,1> chem_lists
 trig4 = 'convert|interconvert'
-patterns4 = [r'(?:%s) %s',
-             r'(?:%s) \w* %s',
+patterns4 = [r'(?:%s) of %s',
              ]
 
 # pattern5: chem_list [transition5] <0,1> [trigger5] <0,1> chem_list
@@ -73,24 +72,36 @@ def group_list(sentence):
     return re.sub(list_pattern, '{\g<0>}chem_list', sentence)
 
 
+def expand_chems(matches):
+    if not matches:
+        return []
+    if not isinstance(matches[0], tuple):
+        matches = [tuple(matches)]
+    result = []
+    for group in matches:
+        expanded = [c for chem_list in group for c in re.findall(chem, chem_list)]
+        result.append(expanded)
+    return result
+
+
 def main():
     patterns = expand_patterns()
     tests = [
-        (0, 1, ['cholesterol', 'chlorohydrins'],
+        (0, 1, [['cholesterol', 'chlorohydrins']],
          'These results indicate that myeloperoxidase can convert $cholesterol$chem to $chlorohydrins$chem and epoxides by a reaction involving HOCl'),
-        (1, 2, ['prostaglandins', 'COX-2'],
+        (1, 2, [['prostaglandins', 'COX-2']],
             'We investigated the possible role of $prostaglandins$chem produced by $COX-2$chem in the immunosuppression observed during Trypanosoma cruzi infection'),
-        (2, 3, ['5-formyl-6-methoxy-2,3', '6- and 5-methyl derivatives'],
+        (2, 3, [['5-formyl-6-methoxy-2,3', '6- and 5-methyl derivatives']],
          'Reduction of 5-methoxy-6-formyl(Ia)- and $5-formyl-6-methoxy-2,3$chem yielded $6- and 5-methyl derivatives$chem Ib and IVb, respectively'),
-        (3, 4, ['ester', 'amide'],
+        (3, 4, [['ester', 'amide']],
          'It results in the mutual conversion of $ester$chem and $amide$chem bonds'),
-        (4, 1, ['cholesterol', 'another chemical', 'chlorohydrins'],
+        (4, 1, [['cholesterol', 'another chemical', 'chlorohydrins']],
          'These results indicate that myeloperoxidase can convert $cholesterol$chem and $another chemical$chem to $chlorohydrins$chem and epoxides by a reaction involving HOCl'),
-        (5, 1, ['a', 'b', 'c', 'd', 'e'],
+        (5, 1, [['a', 'b', 'c', 'd', 'e']],
          'The reaction converts $a$chem, $b$chem, and $c$chem to $d$chem and $e$chem.'),
-        (6, 1, ['a', 'b', 'c', 'd', 'e'],
+        (6, 1, [['a', 'b', 'c', 'd', 'e']],
          'The reaction converts $a$chem, $b$chem, and $c$chem to $d$chem, $e$chem.'),
-        (7, 1, ['a', 'b', 'c', 'd', 'e'],
+        (7, 1, [['a', 'b', 'c', 'd', 'e']],
          'The reaction converts $a$chem, $b$chem, and $c$chem to $d$chem, $e$chem but not $x$chem.'),
         (8, 1, [],
          'The reaction converts $a$chem notatransition $c$chem.'),
@@ -103,9 +114,9 @@ def main():
         fail = True
         grouped_sent = group_list(stemmed_sent)
         for pattern in patterns[pattern_num]:
-            result = flatten_list_tuple(pattern.findall(grouped_sent))
-            expanded_result = [x for y in result for x in re.findall(chem, y)]
-            if expanded_result == output:
+            matches = pattern.findall(grouped_sent)
+            result = expand_chems(matches)
+            if result == output:
                 print 'Test %s passed.' % test_index
                 fail = False
                 break
