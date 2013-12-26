@@ -6,7 +6,7 @@ import chem_canonicalizer
 from pymongo import *
 import sys
 
-COMMON = set(['a', 'purified'])
+COMMON = set(['a', 'purified', 'donor', 'oxidized donor', 'acceptor', 'acceptors'])
 
 
 def clean_chemicals():
@@ -108,14 +108,15 @@ def find_reactants(sentence, substrate_set, product_set):
     '''
     sentence_lower = sentence.lower()
     chemicals = []
+
     for substrate in sorted(substrate_set, key=lambda x: len(x)):
         indexes = find_all(' %s ' % sentence_lower, ' %s ' % substrate.lower())
         for x, y in indexes:
-            chemicals.append((x, y - 2, substrate.lower(), 'substrate'))
+            chemicals.append((x, y - 2, sentence[x:y - 2], 'substrate'))
     for product in sorted(product_set, key=lambda x: len(x)):
         indexes = find_all(' %s ' % sentence_lower, ' %s ' % product.lower())
         for x, y in indexes:
-            chemicals.append((x, y - 2, product.lower(), 'product'))
+            chemicals.append((x, y - 2, sentence[x:y - 2], 'product'))
     if len(chemicals) < 2 or len(set([x[2] for x in chemicals])) < 2:
         return None
     substrate_or_product, exclude = [], []

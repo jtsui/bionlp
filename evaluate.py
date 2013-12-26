@@ -25,7 +25,7 @@ def extract(sentence, chemicals, stemmer, pattern_set):
     grouped_sentence = patterns.group_list(tagged_sentence)
     for pattern_id in pattern_set:
         for pattern in pattern_set[pattern_id]:
-            groups = pattern.findall(grouped_sentence)
+            groups = pattern.findall(grouped_sentence, overlapped=True)
             matches = patterns.expand_chems(groups)
             for match in matches:
                 if match and len(match) > 1:

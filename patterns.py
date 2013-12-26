@@ -1,4 +1,4 @@
-import re
+import regex as re
 from utils import *
 from collections import defaultdict
 from nltk.stem.lancaster import LancasterStemmer
@@ -6,11 +6,11 @@ from nltk.stem.lancaster import LancasterStemmer
 stemmer = LancasterStemmer()
 chem = r'\$([^\$.]*?)\$chem'
 chem_list = r'{([^{}.]*?)}chem_list'
-list_pattern = re.compile(r'(%s)(,?\s*(?:and)?\s*%s)*' % (chem, chem))
+list_pattern = re.compile(r'(%s)(\(?,?\s*(?:and)?\s*%s\)?)*' % (chem, chem))
 
 trans = 'from|to|into|by|are|yield'
 # pattern 1 : [trigger1] <0,1> chem_list <0,1> [transition] chem_list
-trig1 = 'reduc|convert|produc|form|oxid|transform|bioconvert|synthes|react|interconvert'
+trig1 = 'phosphoryl|condens|hydrolys|metabol|reduc|convert|produc|form|oxid|transform|bioconvert|synthes|react|interconvert'
 patterns1 = [r'(?:%s) %s (?:%s) %s',
              r'(?:%s) \w* %s (?:%s) %s',
              r'(?:%s) \w* %s \w* (?:%s) %s',
@@ -49,22 +49,29 @@ patterns5 = [r'%s (?:%s) (?:%s) %s',
              r'%s (?:%s) (?:%s) \w* %s',
              ]
 
+patterns6 = [r'%s[\<\-\>\s]+%s']
+
 
 def expand_patterns():
     patterns = defaultdict(list)
     for pattern in patterns1:
         patterns[1].append(
-            re.compile(pattern % (trig1, chem_list, trans, chem_list)))
+            re.compile(pattern % (trig1, chem_list, trans, chem_list), re.IGNORECASE))
     for pattern in patterns2:
         patterns[2].append(
-            re.compile(pattern % (chem_list, trig2, trans, chem_list)))
+            re.compile(pattern % (chem_list, trig2, trans, chem_list), re.IGNORECASE))
     for pattern in patterns3:
-        patterns[3].append(re.compile(pattern % (chem_list, trig3, chem_list)))
+        patterns[3].append(
+            re.compile(pattern % (chem_list, trig3, chem_list), re.IGNORECASE))
     for pattern in patterns4:
-        patterns[4].append(re.compile(pattern % (trig4, chem_list)))
+        patterns[4].append(
+            re.compile(pattern % (trig4, chem_list), re.IGNORECASE))
     for pattern in patterns5:
         patterns[5].append(
-            re.compile(pattern % (chem_list, trans5, trig5, chem_list)))
+            re.compile(pattern % (chem_list, trans5, trig5, chem_list), re.IGNORECASE))
+    for pattern in patterns6:
+        patterns[6].append(
+            re.compile(pattern % (chem_list, chem_list), re.IGNORECASE))
     return patterns
 
 
@@ -79,7 +86,8 @@ def expand_chems(matches):
         matches = [tuple(matches)]
     result = []
     for group in matches:
-        expanded = [c for chem_list in group for c in re.findall(chem, chem_list)]
+        expanded = [
+            c for chem_list in group for c in re.findall(chem, chem_list)]
         result.append(expanded)
     return result
 
@@ -107,6 +115,10 @@ def main():
          'The reaction converts $a$chem notatransition $c$chem.'),
         (9, 1, [],
          'The reaction xxxxxxx $a$chem to $c$chem.'),
+        (10, 6, [['d-allose', 'd-psicose']],
+            'the interconversion of $d-allose$chem<-->$d-psicose$chem'),
+        (11, 6, [['d-allose', 'd-psicose'], ['d-psicose', 'd-altrose']],
+            'the interconversion of $d-allose$chem<-->$d-psicose$chem<-->$d-altrose$chem'),
     ]
     for test_index, pattern_num, output, sent in tests:
         stemmed_sent = ' '.join(map(lambda word: word if word.startswith(
@@ -114,7 +126,7 @@ def main():
         fail = True
         grouped_sent = group_list(stemmed_sent)
         for pattern in patterns[pattern_num]:
-            matches = pattern.findall(grouped_sent)
+            matches = pattern.findall(grouped_sent, overlapped=True)
             result = expand_chems(matches)
             if result == output:
                 print 'Test %s passed.' % test_index
