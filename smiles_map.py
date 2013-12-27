@@ -1,12 +1,16 @@
 import os
-import parse_utils
-import json
+import sys
+import time
 import cirpy
 import urllib2
-import time
-import sys
-from random import choice
+import parse_utils
 from utils import *
+from random import choice
+try:
+    import ujson as json
+except ImportError:
+    import json
+
 
 MAP_PATH = '../data/smiles_map.json'
 # words that have a smiles but are not chemicals
@@ -49,7 +53,7 @@ def query_smiles(chem):
 
 
 def save_map():
-    json.dump(CHEM_SMILES_MAP, open(MAP_PATH, 'wb'), indent=2)
+    json.dump(CHEM_SMILES_MAP, open(MAP_PATH, 'wb'))
     print 'Smiles map saved successfully.'
 
 

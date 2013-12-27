@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 import time
 import shlex
 import cirpy
@@ -11,6 +10,11 @@ from utils import *
 from random import choice
 from indigo.indigo import *
 from indigo.indigo_inchi import *
+try:
+    import ujson as json
+except ImportError:
+    import json
+
 
 INDIGO = Indigo()
 INDIGO_INCHI = IndigoInchi(INDIGO)
@@ -76,7 +80,7 @@ def get_inchi(chem):
 
 
 def save_map():
-    json.dump(CHEM_INCHI_MAP, open(MAP_PATH, 'wb'), indent=2)
+    json.dump(CHEM_INCHI_MAP, open(MAP_PATH, 'wb'))
     print 'Inchi map saved successfully.'
 
 

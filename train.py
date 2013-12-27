@@ -6,6 +6,7 @@ from pymongo import *
 from parse_utils import *
 import chem_canonicalizer
 
+
 COMMON = set(['a', 'purified', 'donor', 'oxidized donor',
               'acceptor', 'acceptors'])
 

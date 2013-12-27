@@ -1,9 +1,11 @@
 import os
-import json
 import requests
 import xmltodict
 from utils import *
-
+try:
+    import ujson as json
+except ImportError:
+    import json
 
 URL = 'http://pathway.berkeley.edu:27329/tag'
 MAP_PATH = '../data/chemtagger.json'
@@ -51,7 +53,7 @@ def get_compounds(sid, sentence):
 
 
 def save_map():
-    json.dump(CHEMTAGGER_MAP, open(MAP_PATH, 'wb'), indent=2)
+    json.dump(CHEMTAGGER_MAP, open(MAP_PATH, 'wb'))
     print 'Chemtagger map saved successfully.'
 
 
