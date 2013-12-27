@@ -403,6 +403,7 @@ def main():
             return
         elif command == 'tag_sentences':
             tag_sentences()  # generates train_tag_sentences.json
+            chemtagger.save_map()
             return
         elif command == 'match_inchi':
             match_inchi()  # train_match_inchi.json

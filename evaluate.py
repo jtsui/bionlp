@@ -1,6 +1,7 @@
 import sys
 import json
 import patterns
+import chemtagger
 from utils import *
 from tabulate import tabulate
 from collections import defaultdict
@@ -124,6 +125,7 @@ def main():
         this_file, command = sys.argv
         if command == 'run':
             evaluate()
+            chemtagger.save_map()
             return
         elif command == 'stats':
             stats()
