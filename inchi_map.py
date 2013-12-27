@@ -1,22 +1,20 @@
-import cirpy
-import urllib2
-import time
 import os
 import sys
 import json
+import time
+import shlex
+import cirpy
+import urllib2
+import subprocess
+import parse_utils
 from utils import *
 from random import choice
-import parse_utils
-import subprocess
-import shlex
 from indigo.indigo import *
 from indigo.indigo_inchi import *
 
 INDIGO = Indigo()
 INDIGO_INCHI = IndigoInchi(INDIGO)
-
 MAP_PATH = '../data/inchi_map.json'
-
 if os.path.exists(MAP_PATH):
     CHEM_INCHI_MAP = json.load(open(MAP_PATH))
     print 'Loaded existing inchi map.'
@@ -78,7 +76,7 @@ def get_inchi(chem):
 
 
 def save_map():
-    json.dump(CHEM_INCHI_MAP, open(MAP_PATH, 'wb'))
+    json.dump(CHEM_INCHI_MAP, open(MAP_PATH, 'wb'), indent=2)
     print 'Inchi map saved successfully.'
 
 

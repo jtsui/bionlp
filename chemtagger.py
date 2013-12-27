@@ -1,9 +1,18 @@
-import requests
+import os
 import json
-from utils import *
+import requests
 import xmltodict
+from utils import *
+
 
 URL = 'http://pathway.berkeley.edu:27329/tag'
+MAP_PATH = '../data/chemtagger.json'
+if os.path.exists(MAP_PATH):
+    CHEMTAGGER_MAP = json.load(open(MAP_PATH))
+    print 'Loaded existing chemtagger map.'
+else:
+    CHEMTAGGER_MAP = {}
+    print 'No chemtagger map found. Starting from scratch.'
 
 
 def get_tree(text):
@@ -31,11 +40,20 @@ def parse_tree(tree, compounds):
                 parse_tree(tree[key], compounds)
 
 
-def get_compounds(text):
-    tree = get_tree(text)
+def get_compounds(sid, sentence):
+    if sid in CHEMTAGGER_MAP:
+        return CHEMTAGGER_MAP[sid]
+    print 'missing %s' % sid
+    tree = get_tree(sentence)
     cmps = []
     parse_tree(tree, cmps)
+    CHEMTAGGER_MAP[sid] = cmps
     return cmps
+
+
+def save_map():
+    json.dump(CHEMTAGGER_MAP, open(MAP_PATH, 'wb'), indent=2)
+    print 'Chemtagger map saved successfully.'
 
 
 def main():
@@ -52,6 +70,7 @@ def main():
     ]
     for test in tests:
         print get_compounds(test)
+
 
 if __name__ == '__main__':
     main()

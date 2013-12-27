@@ -1,12 +1,13 @@
-import json
-from utils import *
-from parse_utils import *
-import chemtagger
-import chem_canonicalizer
-from pymongo import *
 import sys
+import json
+import chemtagger
+from utils import *
+from pymongo import *
+from parse_utils import *
+import chem_canonicalizer
 
-COMMON = set(['a', 'purified', 'donor', 'oxidized donor', 'acceptor', 'acceptors'])
+COMMON = set(['a', 'purified', 'donor', 'oxidized donor',
+              'acceptor', 'acceptors'])
 
 
 def clean_chemicals():
@@ -73,7 +74,7 @@ def tag_sentences():
     bar.start()
     chemicals = {}
     for sid, sentence in sentences.iteritems():
-        chems = chemtagger.get_compounds(sentence)
+        chems = chemtagger.get_compounds(sid, sentence)
         if chems:
             chemicals[sid] = chems
         i += 1
@@ -109,11 +110,11 @@ def find_reactants(sentence, substrate_set, product_set):
     sentence_lower = sentence.lower()
     chemicals = []
 
-    for substrate in sorted(substrate_set, key=lambda x: len(x)):
+    for substrate in sorted(substrate_set, key=len):
         indexes = find_all(' %s ' % sentence_lower, ' %s ' % substrate.lower())
         for x, y in indexes:
             chemicals.append((x, y - 2, sentence[x:y - 2], 'substrate'))
-    for product in sorted(product_set, key=lambda x: len(x)):
+    for product in sorted(product_set, key=len):
         indexes = find_all(' %s ' % sentence_lower, ' %s ' % product.lower())
         for x, y in indexes:
             chemicals.append((x, y - 2, sentence[x:y - 2], 'product'))
