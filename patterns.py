@@ -12,6 +12,8 @@ LIST_PATTERN = re.compile(
     r'(%s)(\(?,?\s*(?:and)?(?:with)?\s*%s\)?)*' % (CHEM, CHEM))
 PATTERNS = defaultdict(list)
 
+# pattern0: chem_list <--> chem_list
+PATTERN0 = [r'%s[\<\-\>\s]+%s']
 
 TRANS = 'from|to|into|by|are|yield'
 # pattern 1 : [trigger1] <0,1> chem_list <0,1> [transition] chem_list
@@ -49,14 +51,15 @@ PATTERN5 = [r'%s (?:%s) (?:%s) %s',
             r'%s (?:%s) \w* (?:%s) \w* %s',
             r'%s (?:%s) (?:%s) \w* %s',
             ]
-# pattern6: chem_list <--> chem_list
-PATTERN6 = [r'%s[\<\-\>\s]+%s']
 
 
 def expand_patterns():
     global PATTERNS
     if PATTERNS:
         return PATTERNS
+    for pattern in PATTERN0:
+        PATTERNS[0].append(
+            re.compile(pattern % (CHEM_LIST, CHEM_LIST), re.IGNORECASE))
     for pattern in PATTERN1:
         PATTERNS[1].append(
             re.compile(pattern % (TRIG1, CHEM_LIST, TRANS, CHEM_LIST), re.IGNORECASE))
@@ -72,9 +75,6 @@ def expand_patterns():
     for pattern in PATTERN5:
         PATTERNS[5].append(
             re.compile(pattern % (CHEM_LIST, TRANS5, TRIG5, CHEM_LIST), re.IGNORECASE))
-    for pattern in PATTERN6:
-        PATTERNS[6].append(
-            re.compile(pattern % (CHEM_LIST, CHEM_LIST), re.IGNORECASE))
     return PATTERNS
 
 

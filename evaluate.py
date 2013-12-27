@@ -115,6 +115,16 @@ def stats():
                  (tp_num + tm_num + fn_num) == len(pos_labels)]
              ]
     print tabulate(table, [], tablefmt="simple")
+    table = []
+    for i in range(6):
+        tps = len([x for x, matches in tp.items()
+                  for pattern_id, reactants in matches if pattern_id == i])
+        tms = len([x for x, matches in tm.items()
+                  for pattern_id, reactants in matches if pattern_id == i])
+        fps = len([x for x, matches in fp.items()
+                  for pattern_id, reactants in matches if pattern_id == i])
+        table.append([i, tps, tms, fps, tps + tms + fps])
+    print tabulate(table, ['Pattern #', 'True Positive', 'True Miss', 'False Positive', 'Totals'], tablefmt='grid')
 
 
 def main():
