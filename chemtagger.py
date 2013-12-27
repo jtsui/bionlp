@@ -43,7 +43,6 @@ def parse_tree(tree, compounds):
 def get_compounds(sid, sentence):
     if sid in CHEMTAGGER_MAP:
         return CHEMTAGGER_MAP[sid]
-    print 'missing %s' % sid
     tree = get_tree(sentence)
     cmps = []
     parse_tree(tree, cmps)
